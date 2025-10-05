@@ -15,5 +15,5 @@ variable "instance_type" {
 
 variable "key_name" {
   description = "Name of the key pair (already uploaded to AWS)"
-  default     = "revuhub.pem"
+  default     = "revuhub"
 }

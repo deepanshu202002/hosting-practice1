@@ -3,7 +3,11 @@
   hosts: all
   become: true
 
+  vars:
+    app_dir: /home/ubuntu/app
+
   tasks:
+    # Install basic dependencies
     - name: Install dependencies
       apt:
         name:
@@ -11,45 +15,58 @@
           - ca-certificates
           - curl
           - software-properties-common
+          - unzip
         state: present
         update_cache: yes
 
+    # Install Docker
     - name: Install Docker
       shell: |
         curl -fsSL https://get.docker.com -o get-docker.sh
         sh get-docker.sh
         usermod -aG docker ubuntu
 
+    # Install Docker Compose
     - name: Install Docker Compose
       shell: |
         curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         chmod +x /usr/local/bin/docker-compose
 
+    # Install AWS CLI
+    - name: Install AWS CLI
+      apt:
+        name: awscli
+        state: present
+        update_cache: yes
+
+    # Create app directory
     - name: Create app directory
       file:
-        path: /home/ubuntu/app
+        path: "{{ app_dir }}"
         state: directory
         owner: ubuntu
         mode: "0755"
 
-    # 👇 This path points to root-level docker-compose.yml
+    # Copy docker-compose.yml from repo root
     - name: Copy docker-compose.yml
       copy:
-        src: "{{ playbook_dir }}/../../docker-compose.yml"
-        dest: /home/ubuntu/app/docker-compose.yml
+        src: ../../docker-compose.yml # relative to infra/ansible folder
+        dest: "{{ app_dir }}/docker-compose.yml"
         owner: ubuntu
         mode: "0644"
 
+    # Login to AWS ECR
     - name: Login to AWS ECR
       shell: |
         aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ aws_account_id }}.dkr.ecr.{{ aws_region }}.amazonaws.com
 
+    # Run Docker Compose
     - name: Run Docker Compose
       shell: |
         export AWS_ACCOUNT_ID={{ aws_account_id }}
         export AWS_REGION={{ aws_region }}
         export NODE_REPO_NAME={{ node_repo_name }}
         export NGINX_REPO_NAME={{ nginx_repo_name }}
-        cd /home/ubuntu/app
+        cd {{ app_dir }}
         docker compose pull
         docker compose up -d

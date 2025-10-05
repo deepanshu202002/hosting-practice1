@@ -17,34 +17,35 @@ pipeline {
             }
         }
 
-       stage('Terraform Apply') {
-           steps {
-              dir('infra/terraform') {
-            sh '''
-            terraform init
-            terraform apply -auto-approve
+        stage('Terraform Apply') {
+            steps {
+                dir('infra/terraform') {
+                    sh '''
+                    terraform init
+                    terraform apply -auto-approve
 
-            # Ensure infra/ansible folder exists
-            mkdir -p ../ansible
+                    # Ensure infra/ansible folder exists
+                    mkdir -p ../ansible
 
-            # Save EC2 public IP
-            terraform output -raw ec2_public_ip > ../ansible/ec2_ip.txt
-            '''
+                    # Save EC2 public IP to a file (dynamically created)
+                    terraform output -raw ec2_public_ip > ../ansible/ec2_ip.txt
+                    '''
+                }
+            }
         }
-    }
-  }
 
         stage('Prepare Ansible Inventory') {
             steps {
                 script {
-                    def ec2_ip = readFile('ansible/ec2_ip.txt').trim()
+                    // Read the IP that was just created
+                    def ec2_ip = readFile('infra/ansible/ec2_ip.txt').trim()
 
                     withCredentials([sshUserPrivateKey(credentialsId: 'revuhub-key', keyFileVariable: 'SSH_KEY')]) {
                         sh """
-                        mkdir -p ansible
-                        echo "[web]" > ansible/hosts.ini
-                        echo "${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY}" >> ansible/hosts.ini
-                        cat ansible/hosts.ini
+                        mkdir -p infra/ansible
+                        echo "[web]" > infra/ansible/hosts.ini
+                        echo "${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY}" >> infra/ansible/hosts.ini
+                        cat infra/ansible/hosts.ini
                         """
                     }
                 }
@@ -73,8 +74,8 @@ pipeline {
         stage('Deploy via Ansible') {
             steps {
                 sh '''
-                ansible-playbook ansible/install-docker.yml \
-                    -i ansible/hosts.ini \
+                ansible-playbook infra/ansible/install-docker.yml \
+                    -i infra/ansible/hosts.ini \
                     --extra-vars "aws_region=$AWS_REGION aws_account_id=$AWS_ACCOUNT_ID node_repo_name=$NODE_REPO_NAME nginx_repo_name=$NGINX_REPO_NAME"
                 '''
             }

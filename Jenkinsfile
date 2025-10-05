@@ -40,11 +40,14 @@ pipeline {
         stage('Build & Push Docker Images') {
             steps {
                 sh """
+                    export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                    export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
                     aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                    # create repos if they don't exist
+
+                    # Create repos if they don't exist
                     aws ecr describe-repositories --repository-names node-app || aws ecr create-repository --repository-name node-app --region ${AWS_REGION}
                     aws ecr describe-repositories --repository-names nginx-custom || aws ecr create-repository --repository-name nginx-custom --region ${AWS_REGION}
-                    
+
                     docker build -t node-app .
                     docker tag node-app:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/node-app:latest
                     docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/node-app:latest
@@ -60,7 +63,7 @@ pipeline {
             steps {
                 sh """
                     ansible-playbook infra/ansible/install-docker.yml -i infra/ansible/hosts.ini \
-                    --extra-vars "aws_region=${AWS_REGION} aws_account_id=${AWS_ACCOUNT_ID} node_repo_name=node-app nginx_repo_name=nginx-custom"
+                    --extra-vars "aws_region=${AWS_REGION} aws_account_id=${AWS_ACCOUNT_ID} aws_access_key_id=${AWS_ACCESS_KEY_ID} aws_secret_access_key=${AWS_SECRET_ACCESS_KEY} node_repo_name=node-app nginx_repo_name=nginx-custom"
                 """
             }
         }

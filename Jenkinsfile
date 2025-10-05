@@ -17,22 +17,22 @@ pipeline {
             }
         }
 
-        stage('Terraform Apply') {
-            steps {
-                dir('infra/terraform') {
-                    sh '''
-                    terraform init
-                    terraform apply -auto-approve
+       stage('Terraform Apply') {
+           steps {
+              dir('infra/terraform') {
+            sh '''
+            terraform init
+            terraform apply -auto-approve
 
-                    # Ensure ansible directory exists
-                    mkdir -p ../../ansible
+            # Ensure infra/ansible folder exists
+            mkdir -p ../ansible
 
-                    # Save EC2 public IP to a file
-                    terraform output -raw ec2_public_ip > ../../ansible/ec2_ip.txt
-                    '''
-                }
-            }
+            # Save EC2 public IP
+            terraform output -raw ec2_public_ip > ../ansible/ec2_ip.txt
+            '''
         }
+    }
+  }
 
         stage('Prepare Ansible Inventory') {
             steps {

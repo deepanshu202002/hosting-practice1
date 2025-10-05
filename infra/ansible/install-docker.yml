@@ -7,7 +7,6 @@
     app_dir: /home/ubuntu/app
 
   tasks:
-    # Install basic dependencies
     - name: Install dependencies
       apt:
         name:
@@ -19,27 +18,25 @@
         state: present
         update_cache: yes
 
-    # Install Docker
     - name: Install Docker
       shell: |
         curl -fsSL https://get.docker.com -o get-docker.sh
         sh get-docker.sh
         usermod -aG docker ubuntu
 
-    # Install Docker Compose
     - name: Install Docker Compose
       shell: |
         curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         chmod +x /usr/local/bin/docker-compose
 
-    # Install AWS CLI
-    - name: Install AWS CLI
-      apt:
-        name: awscli
-        state: present
-        update_cache: yes
+    - name: Install AWS CLI v2
+      shell: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+      args:
+        creates: /usr/local/bin/aws # so it doesn’t reinstall every run
 
-    # Create app directory
     - name: Create app directory
       file:
         path: "{{ app_dir }}"
@@ -47,20 +44,17 @@
         owner: ubuntu
         mode: "0755"
 
-    # Copy docker-compose.yml from repo root
     - name: Copy docker-compose.yml
       copy:
-        src: ../../docker-compose.yml # relative to infra/ansible folder
+        src: ../../docker-compose.yml
         dest: "{{ app_dir }}/docker-compose.yml"
         owner: ubuntu
         mode: "0644"
 
-    # Login to AWS ECR
     - name: Login to AWS ECR
       shell: |
         aws ecr get-login-password --region {{ aws_region }} | docker login --username AWS --password-stdin {{ aws_account_id }}.dkr.ecr.{{ aws_region }}.amazonaws.com
 
-    # Run Docker Compose
     - name: Run Docker Compose
       shell: |
         export AWS_ACCOUNT_ID={{ aws_account_id }}

@@ -2,9 +2,6 @@
   hosts: all
   become: true
 
-  vars:
-    app_dir: /home/ubuntu/app
-
   tasks:
     - name: Install dependencies
       apt:
@@ -27,23 +24,29 @@
         curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         chmod +x /usr/local/bin/docker-compose
 
-    - name: Install AWS CLI v2
+    - name: Check if AWS CLI is installed
+      command: aws --version
+      register: aws_cli_check
+      ignore_errors: true
+
+    - name: Install AWS CLI v2 if not present
       shell: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
         unzip awscliv2.zip
         sudo ./aws/install
+      when: aws_cli_check.rc != 0
 
     - name: Create app directory
       file:
-        path: "{{ app_dir }}"
+        path: /home/ubuntu/app
         state: directory
         owner: ubuntu
         mode: "0755"
 
     - name: Copy docker-compose.yml
       copy:
-        src: ../../docker-compose.yml
-        dest: "{{ app_dir }}/docker-compose.yml"
+        src: ../../docker-compose.yml # Adjust this path based on your repo structure
+        dest: /home/ubuntu/app/docker-compose.yml
         owner: ubuntu
         mode: "0644"
 
@@ -60,6 +63,6 @@
         export AWS_REGION={{ aws_region }}
         export NODE_REPO_NAME={{ node_repo_name }}
         export NGINX_REPO_NAME={{ nginx_repo_name }}
-        cd {{ app_dir }}
+        cd /home/ubuntu/app
         docker compose pull
         docker compose up -d

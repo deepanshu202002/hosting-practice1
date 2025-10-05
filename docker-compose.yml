@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  web1:
+    image: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${NODE_REPO_NAME}:latest"
+    container_name: web1
+    environment:
+      - SERVER_NAME=web1
+    expose:
+      - "5000"
+    depends_on:
+      - redis
+
+  web2:
+    image: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${NODE_REPO_NAME}:latest"
+    container_name: web2
+    environment:
+      - SERVER_NAME=web2
+    expose:
+      - "5000"
+    depends_on:
+      - redis
+
+  nginx:
+    image: "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${NGINX_REPO_NAME}:latest"
+    container_name: nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - web1
+      - web2
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"

@@ -53,10 +53,17 @@ pipeline {
         }
 
         stage('Build and Push Docker Images to ECR') {
-            steps {
-                sh '''
+           steps {
+            sh '''
                 # Login to ECR
                 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+                # Create ECR repos if they don't exist
+                aws ecr describe-repositories --repository-names $NODE_REPO_NAME || \
+                aws ecr create-repository --repository-name $NODE_REPO_NAME --region $AWS_REGION
+
+                aws ecr describe-repositories --repository-names $NGINX_REPO_NAME || \
+                aws ecr create-repository --repository-name $NGINX_REPO_NAME --region $AWS_REGION
 
                 # Build and push Node app
                 docker build -t $NODE_REPO_NAME .
@@ -68,8 +75,9 @@ pipeline {
                 docker tag $NGINX_REPO_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$NGINX_REPO_NAME:latest
                 docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$NGINX_REPO_NAME:latest
                 '''
-            }
-        }
+    }
+}
+
 
         stage('Deploy via Ansible') {
             steps {

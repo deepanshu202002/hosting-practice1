@@ -24,8 +24,11 @@ pipeline {
                     terraform init
                     terraform apply -auto-approve
 
-                    # Save EC2 public IP to a temporary file
-                    terraform output -raw public_ip > ../../ansible/ec2_ip.txt
+                    # Ensure ansible directory exists
+                    mkdir -p ../../ansible
+
+                    # Save EC2 public IP to a file
+                    terraform output -raw ec2_public_ip > ../../ansible/ec2_ip.txt
                     '''
                 }
             }
@@ -36,9 +39,9 @@ pipeline {
                 script {
                     def ec2_ip = readFile('ansible/ec2_ip.txt').trim()
 
-                    // Inject SSH key from Jenkins credentials
                     withCredentials([sshUserPrivateKey(credentialsId: 'revuhub-key', keyFileVariable: 'SSH_KEY')]) {
                         sh """
+                        mkdir -p ansible
                         echo "[web]" > ansible/hosts.ini
                         echo "${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY}" >> ansible/hosts.ini
                         cat ansible/hosts.ini
